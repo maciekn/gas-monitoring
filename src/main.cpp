@@ -68,6 +68,8 @@ void setup() {
     WiFi.setHostname(host);
     WiFi.begin(ssid, password);
 
+    config_camera();
+
     while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
         Serial.print(".");
