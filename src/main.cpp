@@ -42,6 +42,10 @@ int countFiles(const char *dirname) {
     return files;
 }
 
+void take_picture_wrapper(){
+    take_picture(pictureNumber++);
+}
+
 void handle_last_image() {
     String path = "/pictures/picture" + String(pictureNumber - 1) + ".jpg";
     File file = SD_MMC.open(path, FILE_READ);
@@ -55,20 +59,26 @@ void handle_free_space() {
     server.send(200, "text/plain", response);
 }
 
+void handle_cpu_freq() {
+    const uint32_t freq = getCpuFrequencyMhz();
+    String response = String(freq, 10);
+    server.send(200, "text/plain", response);
+}
+
 void handle_take_image() {
-    take_picture(pictureNumber++);
+    take_picture_wrapper();
     handle_last_image();
 }
 
 void setup() {
     Serial.begin(9600);
+    Serial.println("Hello, world!");
     Serial.setDebugOutput(false);
 
     WiFi.mode(WIFI_AP_STA);
     WiFi.setHostname(host);
     WiFi.begin(ssid, password);
 
-    config_camera();
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
@@ -84,9 +94,12 @@ void setup() {
         Serial.println("mDNS responder started");
     }
 
+    config_camera();
+
     server.on("/image", handle_last_image);
     server.on("/takeimage", handle_take_image);
     server.on("/freespace", handle_free_space);
+    server.on("/cpufreq", handle_cpu_freq);
 
     httpUpdater.setup(&server);
 
@@ -106,23 +119,37 @@ void setup() {
     Serial.println("init completed");
 
     if (!SD_MMC.exists("/pictures")) SD_MMC.mkdir("/pictures");
-
     pictureNumber = countFiles("/pictures") + 1;
 
     MDNS.addService("http", "tcp", 80);
+
+    digitalWrite(4, HIGH);
+    delay(50);
+    digitalWrite(4, LOW);
+    delay(150);
+    digitalWrite(4, HIGH);
+    delay(100);
+    digitalWrite(4, LOW);
 }
 
 
 
 unsigned long previousMillis = 0;
-const long interval = 60000;
+const unsigned long interval = 1000 * 60 * 20;
+
 
 void loop() {
     unsigned long currentMillis = millis();
 
     if (currentMillis - previousMillis >= interval) {
+
         previousMillis = currentMillis;
-        take_picture(pictureNumber++);
+        take_picture_wrapper();
+    } else if (currentMillis < previousMillis) {
+        previousMillis = 0;
     }
+
     server.handleClient();
+
+
 }
